@@ -1,6 +1,6 @@
 ## Building
 
-    $ go get https://github.com/jdef/srv2env
+    $ go get github.com/jdef/srv2env
 
 To generate a static build:
 
