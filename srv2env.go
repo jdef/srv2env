@@ -9,14 +9,6 @@ import (
 	"syscall"
 )
 
-// To generate a static build:
-//    env CGO_ENABLED=0 go build -a -tags netgo -installsuffix netgo \
-//    -ldflags '-extld ld -extldflags -static' -a -x .
-//
-// Sample execution:
-//    ./srv2env _sip._udp.sip2sip.info sh -c 'env'|egrep -e '_HOST|_PORT'
-//    _SIP_HOST0=proxy.sipthor.net.
-//    _SIP_PORT0=5060
 func main() {
 	if len(os.Args) < 2 {
 		panic("missing required fqdn parameter")
@@ -32,7 +24,7 @@ func main() {
 		panic(fmt.Sprintf("failed to locate command binary %q", cmd))
 	}
 
-	s := strings.SplitN(fqdn, ".", 3)
+	s := strings.SplitN(fqdn, ".", 2)
 	prefix := strings.ToUpper(strings.Replace(s[0], "-", "_", -1))
 
 	_, addrs, err := net.LookupSRV("", "", fqdn)
