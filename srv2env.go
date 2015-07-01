@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -24,20 +25,48 @@ func main() {
 		panic(fmt.Sprintf("failed to locate command binary %q", cmd))
 	}
 
-	s := strings.SplitN(fqdn, ".", 2)
-	prefix := strings.ToUpper(strings.Replace(s[0], "-", "_", -1))
-
-	_, addrs, err := net.LookupSRV("", "", fqdn)
+	cname, addrs, err := net.LookupSRV("", "", fqdn)
 	if err != nil {
-		panic(fmt.Sprintf("srv lookup failed: %v", err))
+		if dnserr, ok := err.(*net.DNSError); ok {
+			fmt.Fprintln(os.Stderr, "error:", dnserr.Err)
+			os.Exit(1)
+		}
+		panic(fmt.Sprintf("srv lookup failed: %#+v", err))
+	}
+
+	s := strings.SplitN(cname, ".", 3)
+	prefix := strings.ToUpper(strings.Replace(s[0], "-", "_", -1))
+	scheme := ""
+	if strings.HasPrefix(s[0], "_") {
+		scheme = s[0][1:] + "://"
+	}
+	if strings.HasPrefix(s[1], "_") {
+		prefix += strings.ToUpper(strings.Replace(s[1], "-", "_", -1))
 	}
 
 	envvar := os.Environ()
+	addons := make([]string, 4*len(addrs))
+	eps := make([]string, len(addrs))
 
 	for i, a := range addrs {
-		envvar = append(envvar, fmt.Sprintf("%s_HOST%d=%s\n", prefix, i, a.Target))
-		envvar = append(envvar, fmt.Sprintf("%s_PORT%d=%d\n", prefix, i, a.Port))
+		j := i * 4
+		ii := strconv.Itoa(i)
+		port := strconv.Itoa(int(a.Port))
+		host := a.Target
+		if strings.HasSuffix(host, ".") {
+			host = host[:len(host)-1]
+		}
+		hostport := net.JoinHostPort(host, port)
+
+		addons[j] = prefix + "_HOST" + ii + "=" + host
+		addons[j+1] = prefix + "_PORT" + ii + "=" + port
+		addons[j+2] = prefix + "_ADDR" + ii + "=" + hostport
+		addons[j+3] = prefix + "_ENDPOINT" + ii + "=" + scheme + hostport
+		eps[i] = hostport
 	}
+
+	envvar = append(envvar, addons...)
+	envvar = append(envvar, prefix+"_ENDPOINTS="+scheme+strings.Join(eps, ","))
 
 	err = syscall.Exec(binary, os.Args[2:], envvar)
 	if err != nil {
