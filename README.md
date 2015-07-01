@@ -14,7 +14,7 @@ To generate a static build:
 ## Examples
 
     $ ./srv2env _sip._udp.sip2sip.info sh -c 'env'|egrep -e '_HOST|_PORT'
-    _SIP_HOST0=proxy.sipthor.net.
+    _SIP_HOST0=proxy.sipthor.net
     _SIP_PORT0=5060
 
     $ ./srv2env _sip._udp.qxip.net sh -c 'env'|egrep -e 'cname|_HOST|_PORT|_ENDP'
